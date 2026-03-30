@@ -660,7 +660,7 @@ def _handle_tg_msg(notion: Notion, cfg: Config, text: str) -> None:
     parts = text.split()
     cmd   = parts[0].lower()
     if re.match(r"^/[a-zA-Z0-9\-]+$", parts[0]):
-    reply = cmd_info(notion, cfg, parts[0][1:])
+      reply = cmd_info(notion, cfg, parts[0][1:])
     elif cmd == "/thu":
         reply = cmd_thu(notion, cfg, parts[1]) if len(parts) >= 3 else "❓ /thu N001 1"
     elif cmd == "/status":
