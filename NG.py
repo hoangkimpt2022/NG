@@ -371,9 +371,9 @@ def run_daily(notion: Notion, cfg: Config) -> None:
         asset_n = g_rich(asset, cfg.a_asset) or "(chưa ghi)"
         report_lines.append(
             f"  • {a_name(asset, cfg)}\n"
-            f"    Tài sản : {asset_n}\n"
-            f"    Zalo    : {zalo}\n"
-            f"    Lãi kỳ : {amount:,.0f} đ"
+            f"    Zalo    : 💈 {zalo}\n"
+            f"    Tài sản : 🧮 {asset_n}\n"
+            f"    Lãi kỳ :  📝 {amount:,.0f} đ"
         )
         logger.info("✅ Tạo kỳ lãi: %s | %.0f đ", a_name(asset, cfg), amount)
         created += 1
@@ -382,7 +382,7 @@ def run_daily(notion: Notion, cfg: Config) -> None:
     if created > 0:
         msg = (
             f"📊 TẠO KỲ LÃI {today_str}\n"
-            f"Tổng: {created} kỳ\n\n"
+            f"💸Tổng: {created} kỳ\n\n"
             + "\n\n".join(report_lines)
         )
     else:
@@ -481,13 +481,13 @@ def cmd_info(notion: Notion, cfg: Config, code: str) -> str:
 
     lines = [
         f"📋 {code_up}",
-        f"Tài sản     : {asset_n}",
-        f"Ngày cầm    : {pledge}",
-        f"Số tiền cầm : {capital:,.0f} đ",
-        f"Lãi mỗi kỳ : {interest:,.0f} đ",
-        f"Chu kỳ      : ngày {days}",
-        f"Zalo        : {zalo}",
-        f"Trạng thái  : {status}",
+        f"💈Zalo        : {zalo}",
+        f"🧮Tài sản     : {asset_n}",
+        f"📆Ngày cầm    : {pledge}",
+        f"💸Số tiền cầm : {capital:,.0f} đ",
+        f"📝Lãi mỗi kỳ : {interest:,.0f} đ",
+        f"⏰Chu kỳ      : ngày {days}",
+        f"🕹Trạng thái  : {status}",
         "─────────────────",
         ky_line,
     ]
@@ -581,9 +581,9 @@ def cmd_thang(notion: Notion, cfg: Config) -> str:
 
     return (
         f"📅 BÁO CÁO THÁNG {today.strftime('%m/%Y')}\n"
-        f"Đã thu       : {collected:,.0f} đ ({len(collected_rows)} kỳ)\n"
-        f"Còn chưa thu : {pending:,.0f} đ ({len(open_rows)} kỳ)\n"
-        f"Tổng         : {collected + pending:,.0f} đ"
+        f"📝Đã thu       : {collected:,.0f} đ ({len(collected_rows)} kỳ)\n"
+        f"🔫Còn chưa thu : {pending:,.0f} đ ({len(open_rows)} kỳ)\n"
+        f"🏆Tổng         : {collected + pending:,.0f} đ"
     )
 
 # ─────────────────────────────────────────────
@@ -656,11 +656,13 @@ def run_polling(cfg: Config) -> None:
         except Exception as e:
             logger.error("Lỗi polling: %s", e)
             time.sleep(5)
+
 def _handle_tg_msg(notion: Notion, cfg: Config, text: str) -> None:
     parts = text.split()
     cmd   = parts[0].lower()
-    if re.match(r"^/[a-zA-Z0-9\-]+$", parts[0]):
-      reply = cmd_info(notion, cfg, parts[0][1:])
+
+    if re.match(r"^/[a-zA-Z]\d+$", parts[0]):
+        reply = cmd_info(notion, cfg, parts[0][1:])
     elif cmd == "/thu":
         reply = cmd_thu(notion, cfg, parts[1]) if len(parts) >= 3 else "❓ /thu N001 1"
     elif cmd == "/status":
@@ -670,15 +672,15 @@ def _handle_tg_msg(notion: Notion, cfg: Config, text: str) -> None:
     elif cmd == "/thang":
         reply = cmd_thang(notion, cfg)
     elif cmd == "/d":
-            threading.Thread(
-                target=run_daily,
-                args=(notion, cfg),
-                daemon=True,
-            ).start()
-            reply = "⚙️ Đang chạy daily..."  
+        threading.Thread(
+            target=run_daily,
+            args=(notion, cfg),
+            daemon=True,
+        ).start()
+        reply = "⚙️ Đang chạy daily..."
     else:
         reply = HELP
-    
+
     send_tg(cfg, reply)
     
 # ─────────────────────────────────────────────
