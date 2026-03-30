@@ -655,7 +655,23 @@ def run_polling(cfg: Config) -> None:
         except Exception as e:
             logger.error("Lỗi polling: %s", e)
             time.sleep(5)
-
+def _handle_tg_msg(notion: Notion, cfg: Config, text: str) -> None:
+    parts = text.split()
+    cmd   = parts[0].lower()
+    if re.match(r"^/[a-zA-Z]\d+$", parts[0]):
+        reply = cmd_info(notion, cfg, parts[0][1:])
+    elif cmd == "/thu":
+        reply = cmd_thu(notion, cfg, parts[1]) if len(parts) >= 3 else "❓ /thu N001 1"
+    elif cmd == "/status":
+        reply = cmd_status(notion, cfg)
+    elif cmd == "/quahan":
+        reply = cmd_quahan(notion, cfg)
+    elif cmd == "/thang":
+        reply = cmd_thang(notion, cfg)
+    else:
+        reply = HELP
+    send_tg(cfg, reply)
+    
 # ─────────────────────────────────────────────
 # Serve – chạy trên Render
 # ─────────────────────────────────────────────
@@ -674,6 +690,23 @@ def run_serve(cfg: Config) -> None:
     def health():
         return {"status": "ok", "date": date.today().isoformat()}, 200
 
+    @app.route("/webhook", methods=["POST"])
+    def webhook():
+        from flask import request as freq
+        upd  = freq.get_json()
+        if not upd:
+            return "ok", 200
+        msg  = upd.get("message", {})
+        text = (msg.get("text") or "").strip()
+        cid  = str(msg.get("chat", {}).get("id", ""))
+        if cid == cfg.tg_chat_id and text:
+            threading.Thread(
+                target=_handle_tg_msg,
+                args=(notion, cfg, text),
+                daemon=True,
+            ).start()
+        return "ok", 200
+
     # Scheduler
     def job():
         try:
@@ -688,11 +721,6 @@ def run_serve(cfg: Config) -> None:
         while True:
             schedule.run_pending()
             time.sleep(30)
-
-    # Khởi động threads
-    threading.Thread(target=sched_loop,  daemon=True).start()
-    threading.Thread(target=run_polling, args=(cfg,), daemon=True).start()
-
     send_tg(cfg, f"🚀 NG khởi động – {date.today().isoformat()}")
 
     port = int(os.getenv("PORT", "8000"))
