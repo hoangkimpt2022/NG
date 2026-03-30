@@ -669,8 +669,6 @@ def _handle_tg_msg(notion: Notion, cfg: Config, text: str) -> None:
         reply = cmd_quahan(notion, cfg)
     elif cmd == "/thang":
         reply = cmd_thang(notion, cfg)
-    else:
-        reply = HELP
     elif cmd == "/d":
             threading.Thread(
                 target=run_daily,
@@ -678,6 +676,9 @@ def _handle_tg_msg(notion: Notion, cfg: Config, text: str) -> None:
                 daemon=True,
             ).start()
             reply = "⚙️ Đang chạy daily..."  
+    else:
+        reply = HELP
+    
     send_tg(cfg, reply)
     
 # ─────────────────────────────────────────────
