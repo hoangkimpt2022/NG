@@ -671,14 +671,15 @@ def _handle_tg_msg(notion: Notion, cfg: Config, text: str) -> None:
         reply = cmd_thang(notion, cfg)
     else:
         reply = HELP
-    send_tg(cfg, reply)
     elif cmd == "/d":
             threading.Thread(
                 target=run_daily,
                 args=(notion, cfg),
                 daemon=True,
             ).start()
-            reply = "⚙️ Đang chạy daily..."
+            reply = "⚙️ Đang chạy daily..."  
+    send_tg(cfg, reply)
+    
 # ─────────────────────────────────────────────
 # Serve – chạy trên Render
 # ─────────────────────────────────────────────
