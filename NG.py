@@ -111,7 +111,6 @@ class Config:
     a_pledge:  str = "Ngày cầm"
     a_status:  str = "Trạng thái"
     a_zalo:    str = "Zalo"
-    a_zalo:    str = "Zalo"
     a_pct:     str = "%/Tháng"
     # ── Tổng Thụ Động ──
     thu_dong_ng_page_id: str = ""  # đọc từ env
@@ -745,8 +744,8 @@ def run_polling(cfg: Config) -> None:
                 parts = text.split()
                 cmd   = parts[0].lower()
 
-                # /N001 hoặc /G001 ...
-                if re.match(r"^/[a-zA-Z0-9][a-zA-Z0-9\-]*$", parts[0]):
+                # /N001, /N004-shx ... (chữ + số, có thể có dấu -)
+                if re.match(r"^/[a-zA-Z]\d+[a-zA-Z0-9\-]*$", parts[0]):
                     reply = cmd_info(notion, cfg, parts[0][1:])
 
                 elif cmd == "/thu":
@@ -761,18 +760,25 @@ def run_polling(cfg: Config) -> None:
                 elif cmd == "/quahan":
                     reply = cmd_quahan(notion, cfg)
 
+                elif cmd == "/thang":
+                    reply = cmd_thang(notion, cfg)
+
                 elif cmd == "/tao":
                     reply = cmd_tao(notion, cfg, parts)
+
                 elif cmd == "/on":
                     reply = cmd_on(notion, cfg, parts[1]) if len(parts) >= 2 else "❓ /on N001"
+
                 elif cmd == "/off":
                     reply = cmd_off(notion, cfg, parts[1]) if len(parts) >= 2 else "❓ /off N001"
 
-                else:
-                    reply = HELP
-
-                elif cmd == "/thang":
-                    reply = cmd_thang(notion, cfg)
+                elif cmd == "/d":
+                    threading.Thread(
+                        target=run_daily,
+                        args=(notion, cfg),
+                        daemon=True,
+                    ).start()
+                    reply = "⚙️ Đang chạy daily..."
 
                 else:
                     reply = HELP
@@ -787,7 +793,7 @@ def _handle_tg_msg(notion: Notion, cfg: Config, text: str) -> None:
     parts = text.split()
     cmd   = parts[0].lower()
 
-    if re.match(r"^/[a-zA-Z0-9][a-zA-Z0-9\-]+$", parts[0]):
+    if re.match(r"^/[a-zA-Z]\d+[a-zA-Z0-9\-]*$", parts[0]):
         reply = cmd_info(notion, cfg, parts[0][1:])
     elif cmd == "/thu":
         reply = cmd_thu(notion, cfg, parts[1]) if len(parts) >= 3 else "❓ /thu N001 1"
