@@ -111,6 +111,10 @@ class Config:
     a_pledge:  str = "Ngày cầm"
     a_status:  str = "Trạng thái"
     a_zalo:    str = "Zalo"
+    a_zalo:    str = "Zalo"
+    a_pct:     str = "%/Tháng"
+    # ── Tổng Thụ Động ──
+    thu_dong_ng_page_id: str = ""  # đọc từ env
 
     # ── Cột TỔNG LÃI NG ──
     i_title:        str = "Name"
@@ -161,6 +165,7 @@ def load_config() -> Config:
         tg_chat_id     = required["TELEGRAM_CHAT_ID"],
         daily_run_time = _e("DAILY_RUN_TIME", "08:00"),
         dry_run        = _e("DRY_RUN", "0") not in ("0", "", "false"),
+        thu_dong_ng_page_id = _e("THU_DONG_NG_PAGE_ID"),
     )
 
 # ─────────────────────────────────────────────
@@ -512,6 +517,114 @@ def cmd_thu(notion: Notion, cfg: Config, code: str) -> str:
         logger.error("Lỗi thu %s: %s", code, e)
         return f"❌ Lỗi: {e}"
 
+# ─────────────────────────────────────────────
+# /tao – tạo khách mới trong Lịch NG
+# ─────────────────────────────────────────────
+def cmd_tao(notion: Notion, cfg: Config, parts: list) -> str:
+    """
+    /tao N020 0901234567 XeHonda 5000 10 500 30
+    parts[1]=ID  [2]=zalo  [3]=tài sản  [4]=vốn  [5]=%  [6]=lãi/kỳ  [7]=chu kỳ
+    """
+    if len(parts) < 8:
+        return (
+            "❓ Cú pháp:\n"
+            "/tao [ID] [Zalo] [Tài sản] [Vốn] [%/tháng] [Lãi/kỳ] [Chu kỳ]\n"
+            "Ví dụ: /tao N020 0901234567 XeHonda 5000 10 500 30"
+        )
+    ma_kh   = parts[1].upper()
+    zalo    = parts[2]
+    tai_san = parts[3]
+    try:
+        von    = float(parts[4])
+        pct    = float(parts[5])
+        lai_ky = float(parts[6])
+        chu_ky = int(parts[7])
+    except ValueError:
+        return "❌ Vốn / % / Lãi / Chu kỳ phải là số."
+
+    today = date.today().isoformat()
+
+    # Kiểm tra trùng ID
+    existing = notion.query(
+        cfg.assets_db_id,
+        filter_={"property": cfg.a_title, "title": {"equals": ma_kh}},
+    )
+    if existing:
+        return f"❌ ID {ma_kh} đã tồn tại."
+
+    props = {
+        cfg.a_title:   p_title(ma_kh),
+        cfg.a_asset:   p_rich(tai_san),
+        cfg.a_zalo:    p_rich(zalo),
+        cfg.a_capital: p_num(von),
+        cfg.a_pct:     p_num(pct),
+        cfg.a_interest:p_num(lai_ky),
+        cfg.a_cycle:   p_multi([str(chu_ky)]),
+        cfg.a_pledge:  p_date(today),
+        cfg.a_status:  p_select("Đang cầm"),
+        "Tổng Thụ Động": p_rel([cfg.thu_dong_ng_page_id]),
+    }
+    try:
+        notion.create(cfg.assets_db_id, props)
+        return (
+            f"✅ Đã tạo khách {ma_kh}\n"
+            f"💈 Zalo     : {zalo}\n"
+            f"🧮 Tài sản  : {tai_san}\n"
+            f"💸 Vốn      : {von:,.0f} đ\n"
+            f"📊 %/tháng  : {pct}\n"
+            f"📝 Lãi/kỳ   : {lai_ky:,.0f} đ\n"
+            f"⏰ Chu kỳ   : {chu_ky} ngày\n"
+            f"📆 Ngày cầm : {today}"
+        )
+    except Exception as e:
+        return f"❌ Lỗi tạo khách: {e}"
+
+
+# ─────────────────────────────────────────────
+# /on – bật hợp đồng
+# ─────────────────────────────────────────────
+def cmd_on(notion: Notion, cfg: Config, ma_kh: str) -> str:
+    """
+    /on N020 → Trạng thái = Đang cầm, Ngày cầm = hôm nay, gắn Tổng Thụ Động
+    """
+    rows = notion.query(
+        cfg.assets_db_id,
+        filter_={"property": cfg.a_title, "title": {"equals": ma_kh.upper()}},
+    )
+    if not rows:
+        return f"❌ Không tìm thấy: {ma_kh.upper()}"
+
+    today = date.today().isoformat()
+    notion.update(rows[0]["id"], {
+        cfg.a_status: p_select("Đang cầm"),
+        cfg.a_pledge: p_date(today),
+        "Tổng Thụ Động": p_rel([cfg.thu_dong_ng_page_id]),
+    })
+    return (
+        f"✅ {ma_kh.upper()} đã BẬT\n"
+        f"📆 Ngày cầm : {today}\n"
+        f"🔗 Đã gắn Tổng Thụ Động → NG"
+    )
+
+
+# ─────────────────────────────────────────────
+# /off – tắt hợp đồng
+# ─────────────────────────────────────────────
+def cmd_off(notion: Notion, cfg: Config, ma_kh: str) -> str:
+    """
+    /off N020 → Trạng thái = Đã chuộc
+    """
+    rows = notion.query(
+        cfg.assets_db_id,
+        filter_={"property": cfg.a_title, "title": {"equals": ma_kh.upper()}},
+    )
+    if not rows:
+        return f"❌ Không tìm thấy: {ma_kh.upper()}"
+
+    notion.update(rows[0]["id"], {
+        cfg.a_status: p_select("Đã chuộc"),
+    })
+    return f"✅ {ma_kh.upper()} đã TẮT → Đã chuộc"
 
 def cmd_status(notion: Notion, cfg: Config) -> str:
     rows = notion.query(
@@ -581,9 +694,9 @@ def cmd_thang(notion: Notion, cfg: Config) -> str:
 
     return (
         f"📅 BÁO CÁO THÁNG {today.strftime('%m/%Y')}\n"
-        f"📝Đã thu       : {collected:,.0f} đ ({len(collected_rows)} kỳ)\n"
-        f"🔫Còn chưa thu : {pending:,.0f} đ ({len(open_rows)} kỳ)\n"
-        f"🏆Tổng         : {collected + pending:,.0f} đ"
+        f"📝Đã thu       : {collected:,.0f}  ({len(collected_rows)} kỳ)\n"
+        f"🔫Còn chưa thu : {pending:,.0f}  ({len(open_rows)} kỳ)\n"
+        f"🏆Tổng         : {collected + pending:,.0f} "
     )
 
 # ─────────────────────────────────────────────
@@ -592,12 +705,15 @@ def cmd_thang(notion: Notion, cfg: Config) -> str:
 
 HELP = (
     "📌 Lệnh hỗ trợ:\n"
-    "/N001           → thông tin khách\n"
-    "/thu N001 1     → thu 1 kỳ lãi\n"
-    "/status         → danh sách chưa thu\n"
-    "/quahan         → quá hạn\n"
-    "/thang          → báo cáo tháng"
-    "/d              → chạy daily ngay"
+    "/N001                            → thông tin khách\n"
+    "/thu N001 1                      → thu 1 kỳ lãi\n"
+    "/tao N020 0901... Xe 5000 10 500 30 → tạo khách mới\n"
+    "/on  N001                        → bật hợp đồng\n"
+    "/off N001                        → tắt hợp đồng\n"
+    "/status                          → danh sách chưa thu\n"
+    "/quahan                          → quá hạn\n"
+    "/thang                           → báo cáo tháng\n"
+    "/d                               → chạy daily ngay"
 )
 
 
@@ -645,6 +761,16 @@ def run_polling(cfg: Config) -> None:
                 elif cmd == "/quahan":
                     reply = cmd_quahan(notion, cfg)
 
+                elif cmd == "/tao":
+                    reply = cmd_tao(notion, cfg, parts)
+                elif cmd == "/on":
+                    reply = cmd_on(notion, cfg, parts[1]) if len(parts) >= 2 else "❓ /on N001"
+                elif cmd == "/off":
+                    reply = cmd_off(notion, cfg, parts[1]) if len(parts) >= 2 else "❓ /off N001"
+
+                else:
+                    reply = HELP
+
                 elif cmd == "/thang":
                     reply = cmd_thang(notion, cfg)
 
@@ -671,6 +797,12 @@ def _handle_tg_msg(notion: Notion, cfg: Config, text: str) -> None:
         reply = cmd_quahan(notion, cfg)
     elif cmd == "/thang":
         reply = cmd_thang(notion, cfg)
+    elif cmd == "/tao":
+        reply = cmd_tao(notion, cfg, parts)
+    elif cmd == "/on":
+        reply = cmd_on(notion, cfg, parts[1]) if len(parts) >= 2 else "❓ /on N001"
+    elif cmd == "/off":
+        reply = cmd_off(notion, cfg, parts[1]) if len(parts) >= 2 else "❓ /off N001"
     elif cmd == "/d":
         threading.Thread(
             target=run_daily,
