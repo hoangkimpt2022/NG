@@ -433,7 +433,7 @@ def settle(notion: Notion, cfg: Config, schedule_id: str) -> Dict[str, Any]:
 
     # 1. Tạo Bảng lãi NG
     notion.create(cfg.cashflow_db_id, {
-        cfg.c_title:    p_title(f"Thu lãi | {today} | {amount:,.0f}"),
+        cfg.c_title:    p_title(f"Thu lãi | {due_date} | {amount:,.0f}"),
         cfg.c_asset:    p_rel([a_ids[0]]),
         cfg.c_interest: p_rel([schedule_id]),
         cfg.c_type:     p_select("Lãi"),
