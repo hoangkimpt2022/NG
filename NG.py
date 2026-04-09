@@ -440,6 +440,7 @@ def settle(notion: Notion, cfg: Config, schedule_id: str) -> Dict[str, Any]:
         cfg.c_amount:   p_num(amount),
         cfg.c_date:     p_date(today),
         cfg.c_status:   p_select("Đã thu"),
+        "Ngày phải thu": p_date(due_date),
     })
 
     # 2. Xoá Tổng lãi NG
