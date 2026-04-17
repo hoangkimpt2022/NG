@@ -343,31 +343,34 @@ def run_daily(notion: Notion, cfg: Config) -> None:
     created      = 0
     report_lines = []
 
+    # Tạo kỳ lãi cho ngày DUE = hôm nay + 2 (để notion.py nhắc đúng hôm nay)
+    target_due     = today + timedelta(days=2)
+    target_due_str = target_due.isoformat()
+
     for asset in active:
-        if today.day not in a_cycle_days(asset, cfg):
+        if target_due.day not in a_cycle_days(asset, cfg):
             continue
 
-        # Kiểm tra kỳ lãi hôm nay đã tồn tại chưa
+        # Kiểm tra kỳ lãi đã tồn tại chưa
         exists = notion.query(cfg.interest_db_id, filter_={"and": [
             {"property": cfg.i_asset,    "relation": {"contains": asset["id"]}},
-            {"property": cfg.i_due_date, "date":     {"equals":   today_str}},
+            {"property": cfg.i_due_date, "date":     {"equals":   target_due_str}},
         ]})
         if exists:
-            logger.info("Đã có kỳ lãi: %s | %s", a_name(asset, cfg), today_str)
+            logger.info("Đã có kỳ lãi: %s | %s", a_name(asset, cfg), target_due_str)
             continue
 
-        amount       = a_interest(asset, cfg)
-        remind_date  = (today - timedelta(days=2)).isoformat()
-        title        = f"{a_name(asset, cfg)} | {today_str}"
+        amount = a_interest(asset, cfg)
+        title  = f"{a_name(asset, cfg)} | {target_due_str}"
 
         props: Dict[str, dict] = {
             cfg.i_title:       p_title(title),
             cfg.i_asset:       p_rel([asset["id"]]),
-            cfg.i_due_date:    p_date(today_str),
-            cfg.i_remind_date: p_date(remind_date),
+            cfg.i_due_date:    p_date(target_due_str),
+            cfg.i_remind_date: p_date(today_str),   # nhắc đúng hôm nay
             cfg.i_amount_due:  p_num(amount),
             cfg.i_status:      p_select("Chưa thu"),
-            cfg.i_reminded:    p_select("Chưa"),
+            # Bỏ i_reminded — không cần thiết
         }
         notion.create(cfg.interest_db_id, props)
 
@@ -381,7 +384,7 @@ def run_daily(notion: Notion, cfg: Config) -> None:
         )
         logger.info("✅ Tạo kỳ lãi: %s | %.0f đ", a_name(asset, cfg), amount)
         created += 1
-
+    
     # Báo Telegram
     if created > 0:
         msg = (
@@ -623,6 +626,7 @@ def cmd_off(notion: Notion, cfg: Config, ma_kh: str) -> str:
 
     notion.update(rows[0]["id"], {
         cfg.a_status: p_select("Đã chuộc"),
+        "Tổng Thụ Động": p_rel([]),
     })
     return f"✅ {ma_kh.upper()} đã TẮT → Đã chuộc"
 
