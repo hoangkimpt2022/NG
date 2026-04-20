@@ -565,10 +565,16 @@ def cmd_tao(notion: Notion, cfg: Config, parts: list) -> str:
         cfg.a_cycle:   p_multi([str(chu_ky)]),
         cfg.a_pledge:  p_date(today),
         cfg.a_status:  p_select("Đang cầm"),
-        "Tổng Thụ Động": p_rel([cfg.thu_dong_ng_page_id]),
     }
     try:
-        notion.create(cfg.assets_db_id, props)
+        new_page = notion.create(cfg.assets_db_id, props)
+        # Gắn Tổng Thụ Động sau khi tạo (dùng key thực tế)
+        if cfg.thu_dong_ng_page_id:
+            ttd_key = _get_ttd_key(notion, new_page["id"]) or "Tổng Thụ Động"
+            try:
+                notion.update(new_page["id"], {ttd_key: p_rel([cfg.thu_dong_ng_page_id])})
+            except Exception as e:
+                logger.error("Không gắn được Tổng Thụ Động: %s", e)
         return (
             f"✅ Đã tạo khách {ma_kh}\n"
             f"💈 Zalo     : {zalo}\n"
@@ -581,6 +587,30 @@ def cmd_tao(notion: Notion, cfg: Config, parts: list) -> str:
         )
     except Exception as e:
         return f"❌ Lỗi tạo khách: {e}"
+
+
+# ─────────────────────────────────────────────
+# Helper – tìm tên property thực tế trong Notion
+# (tránh lỗi do tên cột khác encode / dấu cách)
+# ─────────────────────────────────────────────
+def find_prop_key(props: dict, *candidates: str) -> Optional[str]:
+    """Trả về key thực tế trong props khớp với 1 trong candidates (so sánh strip+lower)."""
+    for key in props:
+        for c in candidates:
+            if key.strip().lower() == c.strip().lower():
+                return key
+    return None
+
+
+def _get_ttd_key(notion: Notion, page_id: str) -> Optional[str]:
+    """Lấy tên cột Tổng Thụ Động thực tế từ page Notion."""
+    try:
+        page  = notion.get(page_id)
+        props = page.get("properties", {})
+        return find_prop_key(props, "Tổng Thụ Động", "tổng thụ động", "Tong Thu Dong")
+    except Exception as e:
+        logger.error("Không lấy được properties: %s", e)
+        return None
 
 
 # ─────────────────────────────────────────────
@@ -626,12 +656,13 @@ def cmd_on(notion: Notion, cfg: Config, ma_kh: str) -> str:
         f"🔗 Đã gắn Tổng Thụ Động → NG"
     )
 
+
 # ─────────────────────────────────────────────
 # /off – tắt hợp đồng
 # ─────────────────────────────────────────────
 def cmd_off(notion: Notion, cfg: Config, ma_kh: str) -> str:
     """
-    /off N020 → Trạng thái = Đã chuộc
+    /off N020 → Trạng thái = Đã chuộc, xóa relation Tổng Thụ Động
     """
     rows = notion.query(
         cfg.assets_db_id,
@@ -640,12 +671,14 @@ def cmd_off(notion: Notion, cfg: Config, ma_kh: str) -> str:
     if not rows:
         return f"❌ Không tìm thấy: {ma_kh.upper()}"
 
-    notion.update(rows[0]["id"], {
+    page_id = rows[0]["id"]
+    ttd_key = _get_ttd_key(notion, page_id) or "Tổng Thụ Động"
+
+    notion.update(page_id, {
         cfg.a_status: p_select("Đã chuộc"),
-        "Tổng Thụ Động": p_rel([]),
+        ttd_key:      {"relation": []},
     })
-    return 
-        f"✅ {ma_kh.upper()} đã TẮT → Đã chuộc"
+    return f"✅ {ma_kh.upper()} đã TẮT → Đã chuộc\n🔗 Đã gỡ Tổng Thụ Động"
 
 def cmd_status(notion: Notion, cfg: Config) -> str:
     rows = notion.query(
