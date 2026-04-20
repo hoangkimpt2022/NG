@@ -597,24 +597,34 @@ def cmd_on(notion: Notion, cfg: Config, ma_kh: str) -> str:
     if not rows:
         return f"❌ Không tìm thấy: {ma_kh.upper()}"
 
-    today = date.today().isoformat()
-    notion.update(rows[0]["id"], {
+    today   = date.today().isoformat()
+    asset   = rows[0]
+    page_id = asset["id"]
+    ttd_key = _get_ttd_key(notion, page_id) or "Tổng Thụ Động"
+
+    zalo    = g_rich(asset, cfg.a_zalo)   or "(chưa có)"
+    tai_san = g_rich(asset, cfg.a_asset)  or "(chưa ghi)"
+    von     = g_num(asset, cfg.a_capital) or 0
+    pct     = g_num(asset, cfg.a_pct)     or 0
+    lai_ky  = a_interest(asset, cfg)
+    chu_ky  = ", ".join(str(d) for d in a_cycle_days(asset, cfg))
+
+    notion.update(page_id, {
         cfg.a_status: p_select("Đang cầm"),
         cfg.a_pledge: p_date(today),
-        "Tổng Thụ Động": p_rel([cfg.thu_dong_ng_page_id]),
+        ttd_key:      p_rel([cfg.thu_dong_ng_page_id]),
     })
     return (
         f"✅ {ma_kh.upper()} đã BẬT\n"
         f"💈 Zalo     : {zalo}\n"
         f"🧮 Tài sản  : {tai_san}\n"
-        f"💸 Vốn      : {von:,.0f} \n"
+        f"💸 Vốn      : {von:,.0f} đ\n"
         f"📊 %/tháng  : {pct}\n"
         f"📝 Lãi/kỳ   : {lai_ky:,.0f} đ\n"
         f"⏰ Chu kỳ   : {chu_ky} ngày\n"
         f"📆 Ngày cầm : {today}\n"
         f"🔗 Đã gắn Tổng Thụ Động → NG"
     )
-
 
 # ─────────────────────────────────────────────
 # /off – tắt hợp đồng
@@ -634,12 +644,8 @@ def cmd_off(notion: Notion, cfg: Config, ma_kh: str) -> str:
         cfg.a_status: p_select("Đã chuộc"),
         "Tổng Thụ Động": p_rel([]),
     })
-    return (
+    return 
         f"✅ {ma_kh.upper()} đã TẮT → Đã chuộc"
-        f"💈 Zalo     : {zalo}\n"
-        f"🧮 Tài sản  : {tai_san}\n"
-        f"💸 Vốn      : {von:,.0f}
-    )
 
 def cmd_status(notion: Notion, cfg: Config) -> str:
     rows = notion.query(
