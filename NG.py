@@ -605,6 +605,12 @@ def cmd_on(notion: Notion, cfg: Config, ma_kh: str) -> str:
     })
     return (
         f"✅ {ma_kh.upper()} đã BẬT\n"
+        f"💈 Zalo     : {zalo}\n"
+        f"🧮 Tài sản  : {tai_san}\n"
+        f"💸 Vốn      : {von:,.0f} \n"
+        f"📊 %/tháng  : {pct}\n"
+        f"📝 Lãi/kỳ   : {lai_ky:,.0f} đ\n"
+        f"⏰ Chu kỳ   : {chu_ky} ngày\n"
         f"📆 Ngày cầm : {today}\n"
         f"🔗 Đã gắn Tổng Thụ Động → NG"
     )
@@ -628,7 +634,12 @@ def cmd_off(notion: Notion, cfg: Config, ma_kh: str) -> str:
         cfg.a_status: p_select("Đã chuộc"),
         "Tổng Thụ Động": p_rel([]),
     })
-    return f"✅ {ma_kh.upper()} đã TẮT → Đã chuộc"
+    return (
+        f"✅ {ma_kh.upper()} đã TẮT → Đã chuộc"
+        f"💈 Zalo     : {zalo}\n"
+        f"🧮 Tài sản  : {tai_san}\n"
+        f"💸 Vốn      : {von:,.0f}
+    )
 
 def cmd_status(notion: Notion, cfg: Config) -> str:
     rows = notion.query(
