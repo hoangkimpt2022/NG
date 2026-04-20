@@ -601,7 +601,7 @@ def cmd_on(notion: Notion, cfg: Config, ma_kh: str) -> str:
     notion.update(rows[0]["id"], {
         cfg.a_status: p_select("Đang cầm"),
         cfg.a_pledge: p_date(today),
-        "NG": p_rel([cfg.thu_dong_ng_page_id]),
+        "Tổng Thụ Động": p_rel([cfg.thu_dong_ng_page_id]),
     })
     return (
         f"✅ {ma_kh.upper()} đã BẬT\n"
@@ -626,7 +626,7 @@ def cmd_off(notion: Notion, cfg: Config, ma_kh: str) -> str:
 
     notion.update(rows[0]["id"], {
         cfg.a_status: p_select("Đã chuộc"),
-        "NG": p_rel([]),
+        "Tổng Thụ Động": p_rel([]),
     })
     return f"✅ {ma_kh.upper()} đã TẮT → Đã chuộc"
 
