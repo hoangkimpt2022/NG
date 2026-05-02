@@ -930,8 +930,9 @@ def run_serve(cfg: Config) -> None:
         while True:
             schedule.run_pending()
             time.sleep(30)
-    send_tg(cfg, f"🚀 NG khởi động – {date.today().isoformat()}")
-
+    send_tg(cfg, f"🚀 NG khởi động – {date.today().
+    threading.Thread(target=sched_loop, daemon=True).start()
+    
     port = int(os.getenv("PORT", "8000"))
     logger.info("Flask port %d", port)
     app.run(host="0.0.0.0", port=port)
